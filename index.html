@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+	<title>Robot Cam</title>
+	<style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+	</style>
+	<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<button onclick="startThisThing()">Connect!</button>
+<div style="border: 2px solid #efefef">
+	<video src="" width="640" height="480" id="videoStream"></video>
+	<div>People Connected: <span id="clientCount">0</span></div>
+</div>
+<script>
+  var codecString = 'video/mp4; codecs="avc1.42C028"';
+  var videoDom = document.getElementById('videoStream');
+  var mediaSource = new MediaSource();
+  videoDom.src = window.URL.createObjectURL(mediaSource);
+  var buffer = null;
+  var latestBufferData = [];
+  function updateBuffer(){
+    if (latestBufferData.length > 0 && !buffer.updating) {
+      buffer.appendBuffer(latestBufferData.shift());
+    }
+  }
+  function sourceBufferHandle(){
+    buffer = mediaSource.addSourceBuffer(codecString);
+    buffer.mode = 'sequence';
+    buffer.addEventListener('updateend', function() {
+      console.log('updateend');
+      updateBuffer();
+    });
+  }
+  mediaSource.addEventListener('sourceopen', sourceBufferHandle)
+  var hasPlayed = false;
+  function startThisThing() {
+    var socket = io();
+    socket.on('clientCount', function(clientCount){
+      document.getElementById('clientCount').innerText = clientCount;
+    });
+    socket.on('video', function(streamData){
+      console.log('got it')
+      if (!hasPlayed) {
+        console.log('PLAYING');
+        hasPlayed = true;
+        buffer.appendBuffer(streamData);
+        videoDom.play();
+      }else {
+        latestBufferData.push(streamData)
+        updateBuffer();
+      }
+    });
+    setInterval(function(){
+      // make sure we don't get too far out of real time.
+      latestBufferData = []
+    }, 3000)
+  }
+</script>
+</body>
+</html>
