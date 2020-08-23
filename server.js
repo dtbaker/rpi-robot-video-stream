@@ -7,26 +7,14 @@ const config = {
   webServerPort: 3000
 }
 
-// This stuff accepts the inbound ffmpeg TCP stream and sends the data out to any connected websocket clients.
-const net = require('net')
-let firstPackets = []
-const tcpServer = net.createServer(tcpSocket => {
-  tcpSocket.on('end', function () {
-    console.log('streamer disconnected');
-    firstPackets = []
-  });
-  tcpSocket.on('data', data => {
-    // Capture first few important frames which are required to be sent to any newly connected clients.
-    if (firstPackets.length < 5) {
-      firstPackets.push(data)
-    }
-    // This sends the video frame out to any connected clients:
-    io.emit('video', data)
-  })
-})
-tcpServer.listen(config.tcpServerPort, () => {
-  console.log(`tcp server started, ready to accept stream data on port ${config.tcpServerPort}`);
-})
+const moveVotes = {
+  left: 0,
+  right: 0,
+  forward: 0,
+  back: 0
+}
+
+let latestImageData = null
 
 // Basic web app with HTML page that loads video preview and websocket UI stuff
 app.get('/', (req, res) => {
@@ -36,9 +24,10 @@ let clientCount = 0
 io.on('connection', (socket) => {
   clientCount++
   io.emit('clientCount', clientCount)
-  firstPackets.forEach(videoData => {
-    // We have to send some first frames to the client so they can get in sync.
-    socket.emit('video', videoData)
+  socket.on('moveRobot', (direction) => {
+    if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
+      moveVotes[direction]++
+    }
   })
   socket.on('disconnect', () => {
     clientCount--
@@ -46,6 +35,17 @@ io.on('connection', (socket) => {
     io.emit('clientCount', clientCount)
   });
 });
+
+setInterval(() => {
+  // purge the votes to the robot every so often, let it choose what to do.
+  if (moveVotes.left > 0 || moveVotes.right > 0 || moveVotes.forward > 0 || moveVotes.back > 0) {
+    io.emit('moveVotes', moveVotes);
+    moveVotes.left = 0
+    moveVotes.right = 0
+    moveVotes.forward = 0
+    moveVotes.back = 0
+  }
+}, 500)
 
 http.listen(config.webServerPort, () => {
   console.log(`Open your browser to http://localhost:${config.webServerPort}`);

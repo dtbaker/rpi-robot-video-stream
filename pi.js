@@ -14,6 +14,9 @@ function sleep(ms) {
 }
 
 let ffmpegRunning = null
+let currentDirection = null
+let serial = null
+let currentClientCount = 0
 
 function streamffmpeg() {
   if (ffmpegRunning === null) {
@@ -79,9 +82,16 @@ raspi.init(() => {
         stopffmpeg()
       }
     });
-    socket.on('move', function (moveInstruction) {
-      console.log('got move instructions', moveInstruction)
-      // todo
+    socket.on('moveVotes', function (moveVotes) {
+      if (moveVotes && !currentDirection) {
+        const direction = Object.keys(moveVotes).reduce((a, b) => moveVotes[a] > moveVotes[b] ? a : b);
+        console.log('got move instructions', moveVotes, direction)
+        if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
+          console.log('Moving in direction', direction)
+          currentDirection = direction
+          moveThisThing()
+        }
+      }
     });
 
     // await sleep(1000)
@@ -94,3 +104,28 @@ raspi.init(() => {
     // serial.write(Buffer.from([0xD0, 0, 0]))
   })
 })
+
+const motorSpeed = 14
+const turnSpeed = 14
+
+async function moveThisThing() {
+  if (currentDirection && serial) {
+    switch (currentDirection) {
+      case 'left':
+        serial.write(Buffer.from([0xEA, turnSpeed, turnSpeed]))
+        break;
+      case 'right':
+        serial.write(Buffer.from([0xE5, turnSpeed, turnSpeed]))
+        break;
+      case 'forward':
+        serial.write(Buffer.from([0xE9, motorSpeed, motorSpeed]))
+        break;
+      case 'back':
+        serial.write(Buffer.from([0xE6, motorSpeed, motorSpeed]))
+        break;
+    }
+    await sleep(400)
+    serial.write(Buffer.from([0xD0, 0, 0]))
+    currentDirection = null
+  }
+}

@@ -28,10 +28,10 @@
 			People Connected: <span id="clientCount">0</span>
 		</p>
 		<div class="controls">
-			<button onclick="move('forward');">Forward</button>
-			<button onclick="move('back');">Back</button>
-			<button onclick="move('left');">Left</button>
-			<button onclick="move('right');">Right</button>
+			<button onclick="moveRobot('forward');">Forward</button>
+			<button onclick="moveRobot('back');">Back</button>
+			<button onclick="moveRobot('left');">Left</button>
+			<button onclick="moveRobot('right');">Right</button>
 		</div>
 	</div>
 </div>
@@ -83,6 +83,10 @@
       // make sure we don't get too far out of real time.
       latestBufferData = []
     }, 3000)
+  }
+
+  function moveRobot(direction) {
+    socket.emit('moveRobot', direction)
   }
 </script>
 </body>
