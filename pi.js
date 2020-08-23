@@ -60,7 +60,11 @@ setInterval(() => {
     const form = new FormData()
     const imageData = require('fs').readFileSync(config.memoryImagePath);
     form.append('file', imageData.toString('base64'), 'image.jpg')
-    got.post(`${config.socketServer}/post`, {body: form})
+    got.post(`${config.socketServer}/post`, {
+      body: form, agent: {
+        http: new http.Agent({keepAlive: true}),
+      },
+    })
   }
 }, 1000)
 
