@@ -3,12 +3,28 @@
 <head>
 	<title>Robot Cam</title>
 	<style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      .wrapper { display: none; }
-      .loading { display: none; }
-      .video { flex: 0 0 640px; background: #efefef }
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+
+      body, button {
+          font: 18px Helvetica, Arial;
+      }
+
+      .wrapper {
+          display: none;
+      }
+
+      .loading {
+          display: none;
+      }
+
+      .video {
+          flex: 0 0 640px;
+          background: #efefef
+      }
 	</style>
 	<script src="/socket.io/socket.io.js"></script>
 </head>
@@ -21,7 +37,7 @@
 </div>
 <div class="wrapper" id="videoWrapper">
 	<div class="video">
-		<video src="" width="640" height="480" id="videoStream"></video>
+		<img src="" width="640" height="480" id="videoStream"/>
 	</div>
 	<div class="sidebar">
 		<p>
@@ -36,53 +52,33 @@
 	</div>
 </div>
 <script>
-  var codecString = 'video/mp4; codecs="avc1.42C028"';
-  var videoDom = document.getElementById('videoStream');
-  var mediaSource = new MediaSource();
-  videoDom.src = window.URL.createObjectURL(mediaSource);
-  var buffer = null;
-  var latestBufferData = [];
-  var receivedFrames = false
-  function updateBuffer(){
-    if (latestBufferData.length > 0 && !buffer.updating && !videoDom.error) {
-      buffer.appendBuffer(latestBufferData.shift());
-      if(!receivedFrames){
-        receivedFrames = true;
-	      document.getElementById('loadingWrapper').style.display = 'none';
-	      document.getElementById('videoWrapper').style.display = 'flex';
-      }
+  function b64(e) {
+    var t = "";
+    var n = new Uint8Array(e);
+    var r = n.byteLength;
+    for (var i = 0; i < r; i++) {
+      t += String.fromCharCode(n[i])
     }
+    return window.btoa(t)
   }
-  function sourceBufferHandle(){
-    buffer = mediaSource.addSourceBuffer(codecString);
-    buffer.mode = 'sequence';
-    buffer.addEventListener('updateend', function() {
-      updateBuffer();
-    });
-  }
-  mediaSource.addEventListener('sourceopen', sourceBufferHandle)
+
   var hasPlayed = false;
   function startThisThing() {
     document.getElementById('startWrapper').style.display = 'none';
     document.getElementById('loadingWrapper').style.display = 'flex';
-    var socket = io();
-    socket.on('clientCount', function(clientCount){
+    socket = io();
+    socket.on('clientCount', function (clientCount) {
       document.getElementById('clientCount').innerText = clientCount;
     });
-    socket.on('video', function(streamData){
+    socket.on('video', function (streamData) {
       if (!hasPlayed) {
         hasPlayed = true;
-        buffer.appendBuffer(streamData);
-        videoDom.play();
-      }else {
-        latestBufferData.push(streamData)
-        updateBuffer();
+        document.getElementById('loadingWrapper').style.display = 'none';
+        document.getElementById('videoWrapper').style.display = 'flex';
       }
+      console.log('image!!')
+      document.getElementById('videoStream').src = '/image?ts=' + streamData
     });
-    setInterval(function(){
-      // make sure we don't get too far out of real time.
-      latestBufferData = []
-    }, 3000)
   }
 
   function moveRobot(direction) {

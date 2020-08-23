@@ -1,9 +1,11 @@
 const app = require('express')();
+const multer = require('multer');
+const upload = multer();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http)
+const io = require('socket.io')(http);
+const os = require("os");
 
 const config = {
-  tcpServerPort: 9999,
   webServerPort: 3000
 }
 
@@ -19,6 +21,22 @@ let latestImageData = null
 // Basic web app with HTML page that loads video preview and websocket UI stuff
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/server.html');
+});
+app.post('/post', upload.single('file'), (req, res) => {
+  latestImageData = req.file.buffer.toString('utf8')
+  io.emit('video', new Date().getTime())
+  console.log('received post image')
+});
+app.get('/image', (req, res) => {
+  if (latestImageData) {
+    res.writeHead(200, {
+      'Content-Type': 'image/jpg',
+    });
+    var buf = Buffer.from(latestImageData, 'base64')
+    res.end(buf);
+  } else {
+    res.writeHead(404)
+  }
 });
 let clientCount = 0
 io.on('connection', (socket) => {
