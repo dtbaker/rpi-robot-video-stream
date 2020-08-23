@@ -19,43 +19,41 @@ function sleep(ms) {
   });
 }
 
-let ffmpegRunning = null
+let videoCaptureProcess = null
 let currentDirection = null
 let serial = null
 let currentClientCount = 0
 
-function streamffmpeg() {
-  if (ffmpegRunning === null) {
-    console.log('starting ffmpeg')
-    var cmd = 'ffmpeg';
+function startVideoCapture() {
+  if (videoCaptureProcess === null) {
+    console.log('starting video capture')
+    var cmd = 'raspistill'
     var args = [
-      '-input_format', 'h264',
-      '-video_size', '640x480',
-      '-framerate', '5',
-      '-i', '/dev/video0',
-      '-update', '1',
-      '-y',
-      '-q:v', '1',
-      config.memoryImagePath
+      '-t', '0',
+      '-tl', '1000',
+      '--thumb', 'none',
+      '-n',
+      '-q', '10',
+      '-o', config.memoryImagePath
     ]
-    ffmpegRunning = spawn(cmd, args);
-    if (ffmpegRunning) {
-      ffmpegRunning.on('close', function () {
-        console.log('ffmpeg stopped for some reason')
+    videoCaptureProcess = spawn(cmd, args);
+    if (videoCaptureProcess) {
+      videoCaptureProcess.on('close', function () {
+        console.log('capture process stopped for some reason')
       });
     }
   }
 }
 
-function stopffmpeg() {
-  if (ffmpegRunning !== null) {
-    ffmpegRunning.kill('SIGINT');
-    ffmpegRunning = null
+function stopVideoCapture() {
+  if (videoCaptureProcess !== null) {
+    videoCaptureProcess.kill('SIGINT');
+    videoCaptureProcess = null
   }
 }
 
 setInterval(() => {
-  if (ffmpegRunning && fs.existsSync(config.memoryImagePath)) {
+  if (videoCaptureProcess && fs.existsSync(config.memoryImagePath)) {
     console.log('posting image')
     const form = new FormData()
     const imageData = require('fs').readFileSync(config.memoryImagePath);
@@ -66,7 +64,7 @@ setInterval(() => {
       },
     })
   }
-}, 1000)
+}, 1500)
 
 raspi.init(() => {
   serial = new Serial({
@@ -85,12 +83,12 @@ raspi.init(() => {
       console.log('Someones watching!', currentClientCount)
       // start ffmpeg.
       if (currentClientCount > 1) {
-        streamffmpeg()
+        startVideoCapture()
       } else {
         setTimeout(() => {
           if (currentClientCount <= 1) {
             console.log('Client count is ' + currentClientCount + ' so stopping the stream')
-            stopffmpeg();
+            stopVideoCapture();
           }
         }, 5000)
       }

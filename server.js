@@ -6,7 +6,7 @@ const io = require('socket.io')(http);
 const os = require("os");
 
 const config = {
-  webServerPort: 3000
+  webServerPort: process.env.PORT || 3000
 }
 
 const moveVotes = {
