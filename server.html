@@ -23,7 +23,7 @@
   var buffer = null;
   var latestBufferData = [];
   function updateBuffer(){
-    if (latestBufferData.length > 0 && !buffer.updating) {
+    if (latestBufferData.length > 0 && !buffer.updating && !videoDom.error) {
       buffer.appendBuffer(latestBufferData.shift());
     }
   }
@@ -31,7 +31,6 @@
     buffer = mediaSource.addSourceBuffer(codecString);
     buffer.mode = 'sequence';
     buffer.addEventListener('updateend', function() {
-      console.log('updateend');
       updateBuffer();
     });
   }
@@ -43,9 +42,7 @@
       document.getElementById('clientCount').innerText = clientCount;
     });
     socket.on('video', function(streamData){
-      console.log('got it')
       if (!hasPlayed) {
-        console.log('PLAYING');
         hasPlayed = true;
         buffer.appendBuffer(streamData);
         videoDom.play();
