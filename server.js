@@ -8,7 +8,7 @@ const basicAuth = require('express-basic-auth')
 
 const config = {
   webServerPort: process.env.PORT || 3000,
-  webServerPassword: process.env.PASSWORD || 'letmein'
+  webServerPassword: process.env.PASSWORD
 }
 
 const moveVotes = {
@@ -20,10 +20,12 @@ const moveVotes = {
 
 let latestImageData = null
 
-app.use(basicAuth({
-  users: { 'admin': config.webServerPassword },
-  challenge: true
-}))
+if(config.webServerPassword) {
+  app.use(basicAuth({
+    users: {'admin': config.webServerPassword},
+    challenge: true
+  }))
+}
 
 // Basic web app with HTML page that loads video preview and websocket UI stuff
 app.get('/', (req, res) => {
