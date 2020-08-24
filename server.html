@@ -13,8 +13,20 @@
           font: 18px Helvetica, Arial;
       }
 
+      .start {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 80vh;
+      }
+
+      .start button {
+          padding: 40px;
+      }
+
       .wrapper {
           display: none;
+          flex-wrap: wrap;
       }
 
       .loading {
@@ -24,6 +36,27 @@
       .video {
           flex: 0 0 640px;
           background: #efefef
+      }
+
+      .sidebar {
+          flex: 1;
+          padding: 20px;
+      }
+
+      .controls {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+      }
+
+      .controls button {
+          padding: 20px 10px;
+          flex: 0 0 100%;
+          margin: 10px 0;
+      }
+
+      .controls button.leftright {
+          flex: 0 0 45%;
       }
 	</style>
 	<script src="/socket.io/socket.io.js"></script>
@@ -45,9 +78,9 @@
 		</p>
 		<div class="controls">
 			<button onclick="moveRobot('forward');">Forward</button>
+			<button onclick="moveRobot('left');" class="leftright">Left</button>
+			<button onclick="moveRobot('right');" class="leftright">Right</button>
 			<button onclick="moveRobot('back');">Back</button>
-			<button onclick="moveRobot('left');">Left</button>
-			<button onclick="moveRobot('right');">Right</button>
 		</div>
 	</div>
 </div>
@@ -63,6 +96,7 @@
   }
 
   var hasPlayed = false;
+
   function startThisThing() {
     document.getElementById('startWrapper').style.display = 'none';
     document.getElementById('loadingWrapper').style.display = 'flex';
