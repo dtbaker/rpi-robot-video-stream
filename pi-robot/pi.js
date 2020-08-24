@@ -6,12 +6,18 @@ const spawn = require('child_process').spawn;
 const FormData = require('form-data');
 const got = require('got');
 const config = {
-  socketServer: 'http://192.168.0.14:3000',
+  socketServer: process.env.STREAM_SERVER || 'http://192.168.0.14:3000',
+  webServerPassword: process.env.PASSWORD || 'letmein',
   memoryImagePath: '/run/shm/stream.jpg'
 }
 
-const http = require('http');
-const https = require('https');
+const Agent = require('agentkeepalive');
+const keepaliveAgent = new Agent({
+  maxSockets: 50,
+  maxFreeSockets: 10,
+  timeout: 60000,
+  freeSocketTimeout: 4000,
+});
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -33,7 +39,9 @@ function startVideoCapture() {
       '-tl', '1000',
       '--thumb', 'none',
       '-n',
-      '-q', '10',
+      '-q', '8',
+      '-w', '640',
+      '-h', '480',
       '-o', config.memoryImagePath
     ]
     videoCaptureProcess = spawn(cmd, args);
@@ -58,13 +66,21 @@ setInterval(() => {
     const form = new FormData()
     const imageData = require('fs').readFileSync(config.memoryImagePath);
     form.append('file', imageData.toString('base64'), 'image.jpg')
-    got.post(`${config.socketServer}/post`, {
-      body: form, agent: {
-        http: new http.Agent({keepAlive: true}),
-      },
-    })
+    try {
+      got.post(`${config.socketServer}/post`, {
+        body: form,
+        username: 'admin',
+        password: config.webServerPassword,
+        agent: {
+          http: keepaliveAgent,
+          https: keepaliveAgent
+        },
+      })
+    } catch (e) {
+
+    }
   }
-}, 1500)
+}, 3000)
 
 raspi.init(() => {
   serial = new Serial({
