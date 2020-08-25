@@ -7,8 +7,9 @@ const FormData = require('form-data');
 const got = require('got');
 const config = {
   socketServer: process.env.STREAM_SERVER || 'http://192.168.0.14:3000',
-  webServerPassword: process.env.PASSWORD || 'letmein',
-  memoryImagePath: '/run/shm/stream.jpg'
+  webServerPassword: process.env.PASSWORD,
+  memoryImageFolder: '/run/shm/pirobot/',
+  memoryImageFile: 'stream.jpg'
 }
 
 const Agent = require('agentkeepalive');
@@ -28,6 +29,7 @@ function sleep(ms) {
 let videoCaptureProcess = null
 let currentDirection = null
 let serial = null
+let socket = null
 let currentClientCount = 0
 
 function startVideoCapture() {
@@ -36,13 +38,13 @@ function startVideoCapture() {
     var cmd = 'raspistill'
     var args = [
       '-t', '0',
-      '-tl', '1000',
+      '-tl', '500',
       '--thumb', 'none',
       '-n',
-      '-q', '8',
+      '-q', '6',
       '-w', '640',
       '-h', '480',
-      '-o', config.memoryImagePath
+      '-o', `${config.memoryImageFolder}${config.memoryImageFile}`
     ]
     videoCaptureProcess = spawn(cmd, args);
     if (videoCaptureProcess) {
@@ -60,23 +62,30 @@ function stopVideoCapture() {
   }
 }
 
-setInterval(() => {
-  if (videoCaptureProcess && fs.existsSync(config.memoryImagePath)) {
+let watchDebounce = null
+if (!fs.existsSync(config.memoryImageFolder)){
+  fs.mkdirSync(config.memoryImageFolder);
+}
+fs.watch(config.memoryImageFolder, (event, filename) => {
+  if (filename === config.memoryImageFile && !watchDebounce) {
+    watchDebounce = setTimeout(() => {
+      watchDebounce = null
+    }, 200)
     console.log('posting image')
     const form = new FormData()
-    const imageData = require('fs').readFileSync(config.memoryImagePath);
+    const imageData = require('fs').readFileSync(`${config.memoryImageFolder}${config.memoryImageFile}`);
     form.append('file', imageData.toString('base64'), 'image.jpg')
-    try {
-      got.post(`${config.socketServer}/post`, {
-        body: form,
-        username: 'admin',
-        password: config.webServerPassword,
-        agent: {
-          http: keepaliveAgent,
-          https: keepaliveAgent
-        },
-      })
-    } catch (e) {
+    got.post(`${config.socketServer}/post`, {
+      body: form,
+      username: config.webServerPassword ? 'admin' : null,
+      password: config.webServerPassword,
+      agent: {
+        http: keepaliveAgent,
+        https: keepaliveAgent
+      },
+    }).catch(e => console.log)
+  }
+});
 
     }
   }
