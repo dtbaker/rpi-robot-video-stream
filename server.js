@@ -5,6 +5,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const os = require("os");
 const basicAuth = require('express-basic-auth')
+const pubsub = require("pubsub-js")
 
 const config = {
   webServerPort: process.env.PORT || 3000,
@@ -32,29 +33,47 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/server.html');
 });
 app.post('/post', upload.single('file'), (req, res) => {
-  latestImageData = req.file.buffer.toString('utf8')
-  io.emit('video', new Date().getTime())
-  console.log('received post image')
+  pubsub.publish('MJPEG', Buffer.from(req.file.buffer.toString('utf8'), 'base64'));
 });
-app.get('/image', (req, res) => {
-  if (latestImageData) {
-    res.writeHead(200, {
-      'Content-Type': 'image/jpg',
-    });
-    var buf = Buffer.from(latestImageData, 'base64')
-    res.end(buf);
-  } else {
-    res.writeHead(404)
-  }
+app.get('/stream', (req, res) => {
+  const boundaryID = 'picameraimage'
+  res.writeHead(200, {
+    'Content-Type': 'multipart/x-mixed-replace;boundary="' + boundaryID + '"',
+    'Connection': 'keep-alive',
+    'Expires': 'Fri, 27 May 1977 00:00:00 GMT',
+    'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+    'Pragma': 'no-cache'
+  });
+  const subscriber_token = pubsub.subscribe('MJPEG', function(msg, data) {
+    res.write('--' + boundaryID + '\r\n')
+    res.write('Content-Type: image/jpeg\r\n');
+    res.write('Content-Length: ' + data.length + '\r\n');
+    res.write("\r\n");
+    res.write(data);
+    res.write("\r\n");
+  });
+  res.on('close', function() {
+    pubsub.unsubscribe(subscriber_token);
+    res.end();
+  });
 });
 let clientCount = 0
 io.on('connection', (socket) => {
   clientCount++
   io.emit('clientCount', clientCount)
-  socket.on('moveRobot', (direction) => {
+  socket.on('moveRobotVote', (direction) => {
     if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
       moveVotes[direction]++
+      io.emit('moveVotes', moveVotes);
     }
+  })
+  socket.on('moveRobotComplete', (direction) => {
+    moveVotes.left = 0
+    moveVotes.right = 0
+    moveVotes.forward = 0
+    moveVotes.back = 0
+    io.emit('lastMoveDirection', direction);
+    io.emit('moveVotes', moveVotes);
   })
   socket.on('disconnect', () => {
     clientCount--
@@ -62,17 +81,6 @@ io.on('connection', (socket) => {
     io.emit('clientCount', clientCount)
   });
 });
-
-setInterval(() => {
-  // purge the votes to the robot every so often, let it choose what to do.
-  if (moveVotes.left > 0 || moveVotes.right > 0 || moveVotes.forward > 0 || moveVotes.back > 0) {
-    io.emit('moveVotes', moveVotes);
-    moveVotes.left = 0
-    moveVotes.right = 0
-    moveVotes.forward = 0
-    moveVotes.back = 0
-  }
-}, 500)
 
 http.listen(config.webServerPort, () => {
   console.log(`Open your browser to http://localhost:${config.webServerPort}`);

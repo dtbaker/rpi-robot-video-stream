@@ -58,6 +58,10 @@
       .controls button.leftright {
           flex: 0 0 45%;
       }
+
+      [data-vote] {
+		      opacity: 0.4;
+      }
 	</style>
 	<script src="/socket.io/socket.io.js"></script>
 </head>
@@ -65,58 +69,43 @@
 <div class="start" id="startWrapper">
 	<button onclick="startThisThing()">Connect!</button>
 </div>
-<div class="loading" id="loadingWrapper">
-	Waiting for robot to start......
-</div>
 <div class="wrapper" id="videoWrapper">
 	<div class="video">
-		<img src="" width="640" height="480" id="videoStream"/>
+		<img src="/stream" width="640" height="480" />
 	</div>
 	<div class="sidebar">
 		<p>
-			People Connected: <span id="clientCount">0</span>
+			People Connected: <span id="clientCount">0</span>. Last Move Was: <span id="lastMoveDirection"></span>
 		</p>
 		<div class="controls">
-			<button onclick="moveRobot('forward');">Forward</button>
-			<button onclick="moveRobot('left');" class="leftright">Left</button>
-			<button onclick="moveRobot('right');" class="leftright">Right</button>
-			<button onclick="moveRobot('back');">Back</button>
+			<button onclick="moveRobotVote('forward');">Forward <span class="moveVote" data-vote="forward"></span></button>
+			<button onclick="moveRobotVote('left');" class="leftright">Left <span class="moveVote" data-vote="left"></span></button>
+			<button onclick="moveRobotVote('right');" class="leftright">Right <span class="moveVote" data-vote="right"></span></button>
+			<button onclick="moveRobotVote('back');">Back <span class="moveVote" data-vote="back"></span></button>
 		</div>
 	</div>
 </div>
 <script>
-  function b64(e) {
-    var t = "";
-    var n = new Uint8Array(e);
-    var r = n.byteLength;
-    for (var i = 0; i < r; i++) {
-      t += String.fromCharCode(n[i])
-    }
-    return window.btoa(t)
-  }
-
-  var hasPlayed = false;
-
   function startThisThing() {
     document.getElementById('startWrapper').style.display = 'none';
-    document.getElementById('loadingWrapper').style.display = 'flex';
+    document.getElementById('videoWrapper').style.display = 'flex';
     socket = io();
     socket.on('clientCount', function (clientCount) {
       document.getElementById('clientCount').innerText = clientCount;
     });
-    socket.on('video', function (streamData) {
-      if (!hasPlayed) {
-        hasPlayed = true;
-        document.getElementById('loadingWrapper').style.display = 'none';
-        document.getElementById('videoWrapper').style.display = 'flex';
+    socket.on('lastMoveDirection', function (direction) {
+      document.getElementById('lastMoveDirection').innerText = direction;
+    })
+    socket.on('moveVotes', function (moveVotes) {
+      var keys = ['forward', 'back', 'left', 'right'];
+      for(var x = 0; x < keys.length; x++){
+	      document.querySelector('[data-vote="' + keys[x] + '"]').innerText = moveVotes[keys[x]]
       }
-      console.log('image!!')
-      document.getElementById('videoStream').src = '/image?ts=' + streamData
     });
   }
 
-  function moveRobot(direction) {
-    socket.emit('moveRobot', direction)
+  function moveRobotVote(direction) {
+    socket.emit('moveRobotVote', direction)
   }
 </script>
 </body>

@@ -11,6 +11,7 @@
     "express-basic-auth": "^1.2.0",
     "multer": "^1.4.2",
     "nodemon": "^2.0.4",
+    "pubsub-js": "^1.9.0",
     "socket.io": "^2.3.0"
   },
   "engines": {
