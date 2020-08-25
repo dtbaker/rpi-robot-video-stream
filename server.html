@@ -43,16 +43,23 @@
           padding: 20px;
       }
 
+      .controls-wrapper {
+		      display: flex;
+		      justify-content: space-between;
+		      margin-top: 30px;
+      }
+
       .controls {
+		      flex: 0 0 45%;
           display: flex;
           flex-wrap: wrap;
           justify-content: space-between;
       }
 
       .controls button {
-          padding: 20px 10px;
+          padding: 14px 10px;
           flex: 0 0 100%;
-          margin: 10px 0;
+          margin: 8px 0;
       }
 
       .controls button.leftright {
@@ -77,14 +84,25 @@
 		<p>
 			People Connected: <span id="clientCount">0</span>. Last Move Was: <span id="lastMoveDirection"></span>
 		</p>
-		<div class="controls">
-			<button onclick="moveRobotVote('forward');">Forward <span class="moveVote" data-vote="forward"></span></button>
-			<button onclick="moveRobotVote('left');" class="leftright">Left <span class="moveVote" data-vote="left"></span></button>
-			<button onclick="moveRobotVote('right');" class="leftright">Right <span class="moveVote" data-vote="right"></span></button>
-			<button onclick="moveRobotVote('back');">Back <span class="moveVote" data-vote="back"></span></button>
+		<div class="controls-wrapper">
+			<div class="controls">
+				<h2>Robot Movement</h2>
+				<button onclick="moveRobotVote('forward');">Forward <span class="moveVote" data-vote="forward"></span></button>
+				<button onclick="moveRobotVote('left');" class="leftright">Left <span class="moveVote" data-vote="left"></span></button>
+				<button onclick="moveRobotVote('right');" class="leftright">Right <span class="moveVote" data-vote="right"></span></button>
+				<button onclick="moveRobotVote('back');">Back <span class="moveVote" data-vote="back"></span></button>
+			</div>
+			<div class="controls">
+				<h2>Camera Movement</h2>
+				<button onclick="moveCameraVote('up');">Up</button>
+				<button onclick="moveCameraVote('left');" class="leftright">Left</button>
+				<button onclick="moveCameraVote('right');" class="leftright">Right</button>
+				<button onclick="moveCameraVote('down');">Down</button>
+			</div>
 		</div>
 	</div>
 </div>
+<img src="https://i.imgur.com/PCMKclB.png" alt="the robot" align="center" />
 <script>
   function startThisThing() {
     document.getElementById('startWrapper').style.display = 'none';
@@ -106,6 +124,10 @@
 
   function moveRobotVote(direction) {
     socket.emit('moveRobotVote', direction)
+  }
+
+  function moveCameraVote(direction) {
+    socket.emit('moveRobotCameraVote', direction)
   }
 </script>
 </body>

@@ -5,12 +5,16 @@ const fs = require('fs');
 const spawn = require('child_process').spawn;
 const FormData = require('form-data');
 const got = require('got');
+const Gpio = require('pigpio').Gpio;
 const config = {
   socketServer: process.env.STREAM_SERVER || 'http://192.168.0.14:3000',
   webServerPassword: process.env.PASSWORD,
   memoryImageFolder: '/run/shm/pirobot/',
   memoryImageFile: 'stream.jpg'
 }
+
+const servoUpDown = new Gpio(17, {mode: Gpio.OUTPUT});
+const servoLeftRight = new Gpio(27, {mode: Gpio.OUTPUT});
 
 const Agent = require('agentkeepalive');
 const keepaliveAgent = new Agent({
@@ -32,6 +36,8 @@ let serial = null
 let socket = null
 let currentClientCount = 0
 let latestReceivedVotes = null
+let servoLeftRightPosition = 1000
+let servoUpDownPosition = 1000
 
 function startVideoCapture() {
   if (videoCaptureProcess === null) {
@@ -47,8 +53,8 @@ function startVideoCapture() {
       '-h', '480',
       '-o', `${config.memoryImageFolder}${config.memoryImageFile}`
     ]
-    cmd = 'sh'
-    args = ['-c', `ffmpeg -f video4linux2 -input_format h264 -video_size 640x480 -framerate 2 -i /dev/video0 -vcodec libx264 -profile:v main ${config.memoryImageFolder}${config.memoryImageFile}`]
+    // cmd = 'sh'
+    // args = ['-c', `ffmpeg -input_format h264 -video_size 640x480 -i /dev/video0 -update 1 -y -q:v 1 ${config.memoryImageFolder}${config.memoryImageFile}`]
     videoCaptureProcess = spawn(cmd, args);
     if (videoCaptureProcess) {
       videoCaptureProcess.on('close', function () {
@@ -66,17 +72,18 @@ function stopVideoCapture() {
 }
 
 let watchDebounce = null
-if (!fs.existsSync(config.memoryImageFolder)){
+if (!fs.existsSync(config.memoryImageFolder)) {
   fs.mkdirSync(config.memoryImageFolder);
 }
 fs.watch(config.memoryImageFolder, (event, filename) => {
   if (filename === config.memoryImageFile && !watchDebounce) {
     watchDebounce = setTimeout(() => {
       watchDebounce = null
-    }, 200)
+    }, 500)
     const form = new FormData()
     const imageData = require('fs').readFileSync(`${config.memoryImageFolder}${config.memoryImageFile}`);
     form.append('file', imageData.toString('base64'), 'image.jpg')
+    console.log('meow' + `${config.socketServer}/post`)
     got.post(`${config.socketServer}/post`, {
       body: form,
       username: config.webServerPassword ? 'admin' : null,
@@ -91,8 +98,8 @@ fs.watch(config.memoryImageFolder, (event, filename) => {
 
 setInterval(async () => {
   if (latestReceivedVotes && !currentDirection) {
-    const latestReceivedVotesWithNumbers = Object.keys(latestReceivedVotes).filter(vote=> latestReceivedVotes[vote] > 0)
-    if(latestReceivedVotesWithNumbers.length > 0) {
+    const latestReceivedVotesWithNumbers = Object.keys(latestReceivedVotes).filter(vote => latestReceivedVotes[vote] > 0)
+    if (latestReceivedVotesWithNumbers.length > 0) {
       const direction = latestReceivedVotesWithNumbers.reduce((a, b) => latestReceivedVotes[a] > latestReceivedVotes[b] ? a : b);
       if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
         console.log('Moving in direction', direction)
@@ -103,6 +110,52 @@ setInterval(async () => {
         currentDirection = null
       }
     }
+  }
+}, 200)
+
+let currentCameraDirection = null
+let latestReceivedCameraDirection = null
+const servoInterval = 100
+setInterval(async () => {
+  if (latestReceivedCameraDirection && !currentCameraDirection && ['up', 'down', 'left', 'right'].includes(latestReceivedCameraDirection)) {
+    console.log('Moving camera in direction', latestReceivedCameraDirection)
+    currentCameraDirection = latestReceivedCameraDirection
+    latestReceivedCameraDirection = null
+    switch (currentCameraDirection) {
+      case 'down':
+        servoUpDownPosition += servoInterval;
+        if (servoUpDownPosition > 1600) {
+          servoUpDownPosition = 1600;
+        }
+        break;
+      case 'up':
+        servoUpDownPosition -= servoInterval;
+        if (servoUpDownPosition < 900) {
+          servoUpDownPosition = 900;
+        }
+        break;
+      case 'right':
+        servoLeftRightPosition -= servoInterval;
+        if (servoLeftRightPosition < 500) {
+          servoLeftRightPosition = 500;
+        }
+        break;
+      case 'left':
+        servoLeftRightPosition += servoInterval;
+        if (servoLeftRightPosition > 1900) {
+          servoLeftRightPosition = 1900;
+        }
+        break;
+    }
+    console.log(`${servoUpDownPosition} x ${servoLeftRightPosition}`)
+    servoUpDown.servoWrite(servoUpDownPosition);
+    servoLeftRight.servoWrite(servoLeftRightPosition);
+    await sleep(100)
+    // turn servos off after moving:
+    servoUpDown.servoWrite(0);
+    servoLeftRight.servoWrite(0);
+    await sleep(1000)
+    currentCameraDirection = null
   }
 }, 200)
 
@@ -127,8 +180,13 @@ raspi.init(() => {
       }
     });
     socket.on('moveVotes', async function (moveVotes) {
-      if(moveVotes){
+      if (moveVotes) {
         latestReceivedVotes = moveVotes
+      }
+    });
+    socket.on('moveRobotCamera', async function (direction) {
+      if (direction) {
+        latestReceivedCameraDirection = direction
       }
     });
   })

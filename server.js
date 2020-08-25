@@ -33,6 +33,7 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/server.html');
 });
 app.post('/post', upload.single('file'), (req, res) => {
+  console.log('got image')
   pubsub.publish('MJPEG', Buffer.from(req.file.buffer.toString('utf8'), 'base64'));
 });
 app.get('/stream', (req, res) => {
@@ -65,6 +66,11 @@ io.on('connection', (socket) => {
     if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
       moveVotes[direction]++
       io.emit('moveVotes', moveVotes);
+    }
+  })
+  socket.on('moveRobotCameraVote', (direction) => {
+    if (direction && ['up', 'down', 'left', 'right'].includes(direction)) {
+      io.emit('moveRobotCamera', direction);
     }
   })
   socket.on('moveRobotComplete', (direction) => {
