@@ -31,6 +31,7 @@ let currentDirection = null
 let serial = null
 let socket = null
 let currentClientCount = 0
+let latestReceivedVotes = null
 
 function startVideoCapture() {
   if (videoCaptureProcess === null) {
@@ -87,26 +88,32 @@ fs.watch(config.memoryImageFolder, (event, filename) => {
   }
 });
 
+setInterval(async () => {
+  if (latestReceivedVotes && !currentDirection) {
+    const latestReceivedVotesWithNumbers = Object.keys(latestReceivedVotes).filter(vote=> latestReceivedVotes[vote] > 0)
+    if(latestReceivedVotesWithNumbers.length > 0) {
+      const direction = latestReceivedVotesWithNumbers.reduce((a, b) => latestReceivedVotes[a] > latestReceivedVotes[b] ? a : b);
+      if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
+        console.log('Moving in direction', direction)
+        currentDirection = direction
+        socket.emit('moveRobotComplete', direction)
+        await moveThisThing()
+        await sleep(2000)
+        currentDirection = null
+      }
     }
   }
-}, 3000)
+}, 200)
 
 raspi.init(() => {
   serial = new Serial({
     portId: '/dev/ttyAMA0',
     baudRate: 19200
   });
-  // serial.on('data', (data) => {
-  //   console.log('Got data', data)
-  // })
   serial.open(async () => {
-    // serial.write(Buffer.from([0x82])) // mode?
-    //serial.write(Buffer.from([0x83])) // does control?
-    var socket = io.connect(config.socketServer);
+    socket = io.connect(config.socketServer);
     socket.on('clientCount', function (clientCount) {
       currentClientCount = clientCount
-      console.log('Someones watching!', currentClientCount)
-      // start ffmpeg.
       if (currentClientCount > 1) {
         startVideoCapture()
       } else {
@@ -118,26 +125,11 @@ raspi.init(() => {
         }, 5000)
       }
     });
-    socket.on('moveVotes', function (moveVotes) {
-      if (moveVotes && !currentDirection) {
-        const direction = Object.keys(moveVotes).reduce((a, b) => moveVotes[a] > moveVotes[b] ? a : b);
-        console.log('got move instructions', moveVotes, direction)
-        if (direction && ['forward', 'back', 'left', 'right'].includes(direction)) {
-          console.log('Moving in direction', direction)
-          currentDirection = direction
-          moveThisThing()
-        }
+    socket.on('moveVotes', async function (moveVotes) {
+      if(moveVotes){
+        latestReceivedVotes = moveVotes
       }
     });
-
-    // await sleep(1000)
-    // serial.write(Buffer.from([0xD0, 0, 0]))
-    // await sleep(1000)
-    // serial.write(Buffer.from([0xe9]))
-    // serial.write(String.fromCharCode(14));
-    // serial.write(String.fromCharCode(14));
-    // await sleep(2000)
-    // serial.write(Buffer.from([0xD0, 0, 0]))
   })
 })
 
@@ -162,6 +154,5 @@ async function moveThisThing() {
     }
     await sleep(400)
     serial.write(Buffer.from([0xD0, 0, 0]))
-    currentDirection = null
   }
 }
