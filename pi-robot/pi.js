@@ -47,6 +47,8 @@ function startVideoCapture() {
       '-h', '480',
       '-o', `${config.memoryImageFolder}${config.memoryImageFile}`
     ]
+    cmd = 'sh'
+    args = ['-c', `ffmpeg -f video4linux2 -input_format h264 -video_size 640x480 -framerate 2 -i /dev/video0 -vcodec libx264 -profile:v main ${config.memoryImageFolder}${config.memoryImageFile}`]
     videoCaptureProcess = spawn(cmd, args);
     if (videoCaptureProcess) {
       videoCaptureProcess.on('close', function () {
@@ -72,7 +74,6 @@ fs.watch(config.memoryImageFolder, (event, filename) => {
     watchDebounce = setTimeout(() => {
       watchDebounce = null
     }, 200)
-    console.log('posting image')
     const form = new FormData()
     const imageData = require('fs').readFileSync(`${config.memoryImageFolder}${config.memoryImageFile}`);
     form.append('file', imageData.toString('base64'), 'image.jpg')
@@ -80,10 +81,10 @@ fs.watch(config.memoryImageFolder, (event, filename) => {
       body: form,
       username: config.webServerPassword ? 'admin' : null,
       password: config.webServerPassword,
-      agent: {
-        http: keepaliveAgent,
-        https: keepaliveAgent
-      },
+      // agent: {
+      //   http: keepaliveAgent,
+      //   https: keepaliveAgent
+      // },
     }).catch(e => console.log)
   }
 });
