@@ -36,8 +36,8 @@ let serial = null
 let socket = null
 let currentClientCount = 0
 let latestReceivedVotes = null
-let servoLeftRightPosition = 1000
-let servoUpDownPosition = 1000
+let servoLeftRightPosition = 900
+let servoUpDownPosition = 1400
 
 function startVideoCapture() {
   if (videoCaptureProcess === null) {
@@ -66,7 +66,7 @@ function startVideoCapture() {
 
 function stopVideoCapture() {
   if (videoCaptureProcess !== null) {
-    videoCaptureProcess.kill('SIGINT');
+    videoCaptureProcess.kill('SIGKILL');
     videoCaptureProcess = null
   }
 }
@@ -83,7 +83,6 @@ fs.watch(config.memoryImageFolder, (event, filename) => {
     const form = new FormData()
     const imageData = require('fs').readFileSync(`${config.memoryImageFolder}${config.memoryImageFile}`);
     form.append('file', imageData.toString('base64'), 'image.jpg')
-    console.log('meow' + `${config.socketServer}/post`)
     got.post(`${config.socketServer}/post`, {
       body: form,
       username: config.webServerPassword ? 'admin' : null,
